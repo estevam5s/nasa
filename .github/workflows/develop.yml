@@ -1,0 +1,104 @@
+name: "CI/CD Develop"
+
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+
+env:
+  DOCKER_USER: ${{ secrets.DOCKER_USER }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [ 14 ]
+    name: "Setup"
+    steps:
+      - name: "⚙ Set up Node.js v${{ matrix.node }}"
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: "✅ Checkout repository"
+        uses: actions/checkout@v2
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [ 14 ]
+    needs: setup
+    name: "Build"
+    steps:
+      - name: "⚙ Set up Node.js v${{ matrix.node }}"
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: "✅ Checkout repository"
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: "💾 Restore packages from cache"
+        uses: actions/cache@v2
+        with:
+          path: |
+            node_modules
+            */*/node_modules
+          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
+      - name: "🦉 GitGuardian scan"
+        uses: GitGuardian/ggshield-action@master
+        env:
+          GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
+          GITHUB_PUSH_BASE_SHA: ${{ github.event.base }}
+          GITHUB_PULL_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_DEFAULT_BRANCH: ${GITHUB_REF##*/}
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+
+      - name: "📦 Install packages"
+        run: yarn install
+
+      - name: "💅 Lint"
+        run: yarn lint
+
+      - name: "🔨 Build"
+        run: yarn build
+
+      - name: "👨‍💻 Run Test"
+        run: yarn test
+        env:
+          NODE_ENV: 'test'
+
+      - name: "📊 Upload coverage report to Codecov"
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: "📊 SonarCloud Scan"
+        uses: SonarSource/sonarcloud-github-action@master
+        with:
+          args: >
+            -Dsonar.organization=${{ github.repository_owner }}
+            -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }}
+            -Dsonar.projectName=${{ github.repository_owner }}_${{ github.event.repository.name }}
+            -Dsonar.projectVersion=1.0
+            -Dsonar.sourceEncoding=UTF-8
+            -Dsonar.sources=./src
+            -Dsonar.exclusions=**/*.bin,node_modules/**,test/**,**/__test__/**,**/__mocks__/**,src/main.ts
+            -Dsonar.coverage.exclusions=node_modules/**,test/**,**/__test__/**,**/__mocks__/**,src/main.ts
+            -Dsonar.testExecutionReportPaths=test-report.xml
+            -Dsonar.javascript.lcov.reportPaths=./coverage/lcov.info
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: "🐳 Docker"
+        run: |
+          docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
+          docker build -t ${{ github.event.repository.name }} .

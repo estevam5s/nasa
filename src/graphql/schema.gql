@@ -1,0 +1,70 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type Planet {
+  pl_name: String!
+  pl_bmassj: Float!
+}
+
+type Recharge {
+  stationID: Float!
+  usuario: String!
+  inicio_recarga: DateTime!
+  fin_recarga: DateTime!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Station {
+  id: ID!
+  planetName: String!
+}
+
+type User {
+  id: ID!
+  email: String!
+  name: String!
+  password: String!
+}
+
+type Query {
+  users: [User!]!
+  user(id: Int!): User!
+  suitablePlanets: [Planet!]!
+  stations: [Station!]!
+  stationHistory(stationID: Float!): [Station!]!
+  rechargeHistory(stationID: Float!): [Recharge!]!
+}
+
+type Mutation {
+  createUser(createUserInput: CreateUserInput!): User!
+  updateUser(updateUserInput: UpdateUserInput!): User!
+  removeUser(id: Int!): User!
+  installStation(planetName: String!): Station!
+  reservation(stationID: Float!, usuario: String!, inicio: DateTime!, fin: DateTime!): String!
+  cancelStation(reservationID: Float!): String!
+  cancelRecharge(id: Float!): Recharge!
+  recharge(data: CreateRechargeInput!): Recharge!
+}
+
+input CreateUserInput {
+  name: String!
+  email: String!
+}
+
+input UpdateUserInput {
+  id: Int!
+  email: String
+  name: String
+  password: String
+}
+
+input CreateRechargeInput {
+  stationID: Float!
+  fin_recarga: DateTime!
+  usuario: String!
+}

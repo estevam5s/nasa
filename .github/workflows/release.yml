@@ -1,0 +1,141 @@
+name: "Release"
+
+on:
+  workflow_dispatch:
+    inputs:
+      newVersion:
+        description: "Version to publish: v[MAJOR].[MINOR].[PATCH]"
+        required: true
+        default: '0.0.0'
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+  GITHUB_EMAIL: ${{ secrets.GH_EMAIL }}
+  DOCKER_USER: ${{ secrets.DOCKER_USER }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [ 14 ]
+    name: "Setup"
+    steps:
+      - name: "⚙ Set up Node.js v${{ matrix.node }}"
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: "✅ Checkout repository"
+        uses: actions/checkout@v2
+
+  release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [ 14 ]
+    name: "Release"
+    needs: setup
+    steps:
+      - name: "⚙ Set up Node.js v${{ matrix.node }}"
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: "✅ Checkout repository"
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: "💾 Restore Dependencies from cache"
+        uses: actions/cache@v2
+        with:
+          path: |
+            node_modules
+            */*/node_modules
+          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
+      - name: "🦉 GitGuardian scan"
+        uses: GitGuardian/ggshield-action@master
+        env:
+          GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
+          GITHUB_PUSH_BASE_SHA: ${{ github.event.base }}
+          GITHUB_PULL_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+
+      - name: "📦 Install packages"
+        run: yarn install
+
+      - name: "💅 Lint"
+        run: yarn lint
+
+      - name: "🔨 Build"
+        run: yarn build
+
+      - name: "👨‍💻 Run Test"
+        run: yarn test
+        env:
+          NODE_ENV: 'test'
+
+      - name: "📊 Upload coverage report to Codecov"
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: "📊 SonarCloud Scan"
+        uses: SonarSource/sonarcloud-github-action@master
+        with:
+          args: >
+            -Dsonar.organization=${{ github.repository_owner }}
+            -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }}
+            -Dsonar.projectName=${{ github.repository_owner }}_${{ github.event.repository.name }}
+            -Dsonar.projectVersion=1.0
+            -Dsonar.sourceEncoding=UTF-8
+            -Dsonar.sources=./src
+            -Dsonar.exclusions=**/*.bin,node_modules/**,test/**,**/__test__/**,**/__mocks__/**,src/main.ts
+            -Dsonar.coverage.exclusions=node_modules/**,test/**,**/__test__/**,**/__mocks__/**,src/main.ts
+            -Dsonar.testExecutionReportPaths=test-report.xml
+            -Dsonar.javascript.lcov.reportPaths=./coverage/lcov.info
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: "🐳 Docker"
+        run: |
+          docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
+          docker build -t ${{ github.event.repository.name }} .
+          docker tag ${{ github.event.repository.name }} ${DOCKER_USER}/${{ github.event.repository.name }}:${{ github.sha }}
+          docker tag ${{ github.event.repository.name }} ${DOCKER_USER}/${{ github.event.repository.name }}:v${{github.event.inputs.newVersion}}
+          docker tag ${{ github.event.repository.name }} ${DOCKER_USER}/${{ github.event.repository.name }}:latest
+          docker push ${DOCKER_USER}/${{ github.event.repository.name }}:${{ github.sha }}
+          docker push ${DOCKER_USER}/${{ github.event.repository.name }}:v${{github.event.inputs.newVersion}}  
+          docker push ${DOCKER_USER}/${{ github.event.repository.name }}:latest       
+
+      - name: "🏷️ Create Release: v${{github.event.inputs.newVersion}}"
+        run: |
+          git config --global user.name "GitHub CD bot"
+          git config --global user.email "${GITHUB_EMAIL}"
+          npm run release -- --release-as ${{github.event.inputs.newVersion}}        
+          git push --follow-tags origin master
+
+      - name: "📄 Create Changelog"
+        uses: Bullrich/generate-release-changelog@master
+        id: Changelog
+        env:
+          REPO: ${{ github.repository }}
+
+      - name: "🚀 Publish Release: v${{github.event.inputs.newVersion}}"
+        uses: actions/create-release@v1
+        with:
+          tag_name: "v${{github.event.inputs.newVersion}}"
+          release_name: "v${{github.event.inputs.newVersion}}"
+          body: |
+            ${{ steps.Changelog.outputs.changelog }}
+            
+            ---
+            
+            > 💬 All notable changes to this project will be documented in [Changelog](${{ github.event.repository.html_url }}/blob/master/CHANGELOG.md) file.
+          draft: false
+          prerelease: false

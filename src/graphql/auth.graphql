@@ -1,0 +1,153 @@
+mutation signup {
+  signup(
+    email: "estevamsouzalaureth@gmail.com"
+    firstName: "Estevam"
+    lastName: "Sozua"
+    password: "user"
+    phone: "+5548988338777"
+  ) {
+    user {
+      id
+    }
+    token
+  }
+}
+
+mutation login {
+  login(email: "estevamsouzalaureth@gmail.com", password: "pw") {
+    user {
+      id
+    }
+    token
+  }
+}
+
+mutation authentication {
+  authentication {
+    user {
+      id
+    }
+    token
+  }
+}
+
+mutation installStation {
+  installStation(
+    planet: "Tatooine"
+    stationName: "Estação de Carregamento de Tatooine"
+  ) {
+    id
+    planet
+    stationName
+  }
+}
+
+# é sugerido que o usuário esteja logado
+
+mutation createVehicle {
+  createVehicle(
+    vehicleName: "X-Wing"
+    vehicleModel: "T-65 X-wing"
+    vehicleManufacturer: "Incom Corporation"
+    vehicleCostInCredits: "149999"
+    vehicleLength: "12.5"
+    vehicleMaxAtmospheringSpeed: "1050"
+    vehicleCrew: "1"
+    vehiclePassengers: "0"
+    vehicleCargoCapacity: "110"
+    vehicleConsumables: "1 week"
+    vehicleVehicleClass: "Starfighter"
+    vehiclePilots: ["Luke Skywalker", "C-3PO", "R2-D2", "Darth Vader", "Leia Organa"]
+    vehicleFilms: ["A New Hope", "The Empire Strikes Back", "Return of the Jedi"]
+  ) {
+    id
+    vehicleName
+    vehicleModel
+    vehicleManufacturer
+    vehicleCostInCredits
+    vehicleLength
+    vehicleMaxAtmospheringSpeed
+    vehicleCrew
+    vehiclePassengers
+    vehicleCargoCapacity
+    vehicleConsumables
+    vehicleVehicleClass
+    vehiclePilots
+    vehicleFilms
+  }
+}
+
+query stations {
+  stations {
+    id
+    planet
+    stationName
+  }
+}
+
+# criar uma mutation recharge, que dados uma estação e um datetime de quando a recarga deve ser feita, realiza a recarga, começando a partir do momento em que a mutation foi chamada e finalizando no datetime informado
+# Só é possível realizar uma recarga por estação por vez
+# Essa recarga deve estar atrelado a um usuário - sinta-se livre para implementar da maneira que você desejar.
+# Um usuário só pode ter no máximo uma recarga em andamento por estação
+
+mutation recharge {
+  recharge(
+    stationId: "5f9b9b9e-0c9c-4a9a-8c9e-0c9c4a9a8c9e"
+    rechargeDate: "2020-12-25T00:00:00.000Z"
+  ) {
+    id
+    station {
+      id
+      planet
+      stationName
+    }
+    rechargeDate
+  }
+}
+
+# Crie uma mutation reservation, que dado uma estação, um usuário e um intervalo de tempo,
+# cria uma reserva da estação para o usuário naquele determinado intervalo de tempo.
+# Não deve ser possível criar uma reserva que conflite com o intervalo de outra reserva ou de uma recarga já em andamento
+
+mutation reservation {
+  reservation(
+    stationId: "5f9b9b9e-0c9c-4a9a-8c9e-0c9c4a9a8c9e"
+    userId: "5f9b9b9e-0c9c-4a9a-8c9e-0c9c4a9a8c9e"
+    startDate: "2020-12-25T00:00:00.000Z"
+    endDate: "2020-12-25T00:00:00.000Z"
+  ) {
+    id
+    station {
+      id
+      planet
+      stationName
+    }
+    user {
+      id
+      firstName
+      lastName
+    }
+    startDate
+    endDate
+  }
+}
+
+# Para realizar uma recarga de uma determinada reserva, é necessário chamar uma mutation (podendo ser a própria recharge ou uma nova mutation - como você preferir) passando apenas um reservationId. A utilização só pode ocorrer dentro do próprio intervalo de tempo da reserva (e.g. Se a reserva foi de 12:00 até 13:00, só deve ser possível utilizá-la entre 12:00 e 13:00).
+
+mutation rechargeReservation {
+  rechargeReservation(reservationId: "5f9b9b9e-0c9c-4a9a-8c9e-0c9c4a9a8c9e") {
+    id
+    station {
+      id
+      planet
+      stationName
+    }
+    user {
+      id
+      firstName
+      lastName
+    }
+    startDate
+    endDate
+  }
+}
