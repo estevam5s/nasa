@@ -27,7 +27,7 @@
     "rm:db": "docker rm -f postgres"
   },
   "dependencies": {
-    "@nestjs/apollo": "^10.0.9",
+    "@nestjs/apollo": "10.1.4",
     "@nestjs/axios": "^0.1.0",
     "@nestjs/common": "^8.0.0",
     "@nestjs/core": "^8.0.0",
