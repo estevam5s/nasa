@@ -699,9 +699,7 @@
     "tslib" "2.3.1"
 
 "@nestjs/axios@^0.1.0":
-  "integrity" "sha512-b2TT2X6BFbnNoeteiaxCIiHaFcSbVW+S5yygYqiIq5i6H77yIU3IVuLdpQkHq8/EqOWFwMopLN8jdkUT71Am9w=="
-  "resolved" "https://registry.npmjs.org/@nestjs/axios/-/axios-0.1.0.tgz"
-  "version" "0.1.0"
+  version "0.1.1"
   dependencies:
     "axios" "0.27.2"
 
